@@ -70,9 +70,9 @@ let hitSound;
 function preload() {
   // Audio loading disabled to prevent "Loading" issue in preview.
   // To enable audio, uncomment and ensure files are in the correct local path:
-  // bgMusic = loadSound('./assets/shootgame-bg.wav');
-  // fireSound = loadSound('./assets/shootgame-shooting.wav');
-  // hitSound = loadSound('./assets/shootgame-shothit.wav');
+  bgMusic = loadSound('shootgame-bg.wav');
+  fireSound = loadSound('shootgame-shooting.wav');
+  hitSound = loadSound('shootgame-shothit.wav');
 }
 
 class Enemy {
@@ -128,8 +128,8 @@ function setup() {
   player = new Player();
   resetEnemies();
   // Enable audio by uncommenting after adding valid files:
-  // bgMusic.setVolume(0.3); // Quieter background
-  // bgMusic.loop();
+  bgMusic.setVolume(0.3); // Quieter background
+  bgMusic.loop();
 }
 
 function draw() {
@@ -159,9 +159,9 @@ function draw() {
           bullets.splice(i, 1);
           score += 10;
           // Play hit sound (enable after adding valid file):
-          // if (hitSound) {
-          //   hitSound.setVolume(0.5);
-          //   hitSound.play();
+          if (hitSound) {
+             hitSound.setVolume(0.5);
+             hitSound.play();
           // }
           break;
         }
@@ -260,9 +260,9 @@ function keyPressed() {
     resetEnemies();
     gameState = 'playing';
     // Restart background music (enable after adding valid file):
-    // if (bgMusic) {
-    //   bgMusic.loop();
-    // }
+    if (bgMusic) {
+       bgMusic.loop();
+        }
   }
 }
 
@@ -327,10 +327,10 @@ class Player {
       }
       this.shootTimer = this.shootCooldown;
       // Play firing sound (enable after adding valid file):
-      // if (fireSound) {
-      //   fireSound.setVolume(0.5);
-      //   fireSound.play();
-      // }
+      if (fireSound) {
+         fireSound.setVolume(0.5);
+         fireSound.play();
+       }
     }
   }
   
