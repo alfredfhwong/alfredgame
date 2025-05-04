@@ -44,6 +44,13 @@
   <title>Space Invaders Game</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/addons/p5.sound.min.js"></script>
+  <style>
+    canvas {
+      display: block;
+      margin: auto;
+      padding-top: 20px;
+    }
+  </style>
 </head>
 <body>
 <script>
@@ -60,12 +67,12 @@ let bgMusic;
 let fireSound;
 let hitSound;
 
-
 function preload() {
-  // Load audio files (replace with actual URLs or local paths)
-  bgMusic = loadSound('spacegame-bg.wav');
-  fireSound = loadSound('spacegame-shooting.wav');
-  hitSound = loadSound('spacegame-shothit.wav');
+  // Audio loading disabled to prevent "Loading" issue in preview.
+  // To enable audio, uncomment and ensure files are in the correct local path:
+  // bgMusic = loadSound('./assets/shootgame-bg.wav');
+  // fireSound = loadSound('./assets/shootgame-shooting.wav');
+  // hitSound = loadSound('./assets/shootgame-shothit.wav');
 }
 
 class Enemy {
@@ -88,13 +95,13 @@ class Enemy {
     
     // Constrain to canvas boundaries
     this.x = constrain(this.x, 0, width - this.width);
-    this.y = constrain(this.y, 0, height - 100 - this.height);
+    this.y = constrain(this.y, 0, height - 150 - this.height);
     
     // Increment time for continuous movement
     this.time += 1;
     
     // Bounce off edges by reversing vertical velocity (rare case)
-    if (this.y <= 0 || this.y >= height - 100 - this.height) {
+    if (this.y <= 0 || this.y >= height - 150 - this.height) {
       this.vy = -this.vy;
     }
   }
@@ -117,12 +124,12 @@ class Enemy {
 }
 
 function setup() {
-  createCanvas(600, 400);
+  createCanvas(800, 600); // Larger canvas
   player = new Player();
   resetEnemies();
-  // Start background music
-  bgMusic.setVolume(0.3); // Quieter background
-  bgMusic.loop();
+  // Enable audio by uncommenting after adding valid files:
+  // bgMusic.setVolume(0.3); // Quieter background
+  // bgMusic.loop();
 }
 
 function draw() {
@@ -151,9 +158,11 @@ function draw() {
           enemies.splice(j, 1);
           bullets.splice(i, 1);
           score += 10;
-          // Play hit sound
-          hitSound.setVolume(0.5);
-          hitSound.play();
+          // Play hit sound (enable after adding valid file):
+          // if (hitSound) {
+          //   hitSound.setVolume(0.5);
+          //   hitSound.play();
+          // }
           break;
         }
       }
@@ -163,7 +172,7 @@ function draw() {
     for (let enemy of enemies) {
       enemy.update();
       enemy.show();
-      if (enemy.y + enemy.height > height - 100) { // Prevent enemies from reaching player area
+      if (enemy.y + enemy.height > height - 150) { // Adjusted for larger canvas
         resetEnemies();
         score = max(0, score - 10);
       }
@@ -219,21 +228,21 @@ function draw() {
     
     // Display score, lives, and wave
     fill(255);
-    textSize(20);
+    textSize(24); // Slightly larger text for larger canvas
     textAlign(LEFT);
-    text(`Score: ${score}`, 10, 30);
-    text(`Lives: ${lives}`, 10, 60);
-    text(`Wave: ${wave}`, 10, 90);
+    text(`Score: ${score}`, 15, 40);
+    text(`Lives: ${lives}`, 15, 80);
+    text(`Wave: ${wave}`, 15, 120);
   } else if (gameState === 'lost') {
-    // Stop background music
-    bgMusic.stop();
+    // Stop background music (enable after adding valid file):
+    // if (bgMusic) bgMusic.stop();
     fill(255);
-    textSize(32);
+    textSize(48); // Larger text for game over
     textAlign(CENTER);
     text('Game Over!', width / 2, height / 2);
-    textSize(20);
-    text(`Final Score: ${score}`, width / 2, height / 2 + 40);
-    text('Press R to Restart', width / 2, height / 2 + 80);
+    textSize(24);
+    text(`Final Score: ${score}`, width / 2, height / 2 + 60);
+    text('Press R to Restart', width / 2, height / 2 + 120);
   }
 }
 
@@ -250,8 +259,10 @@ function keyPressed() {
     player = new Player();
     resetEnemies();
     gameState = 'playing';
-    // Restart background music
-    bgMusic.loop();
+    // Restart background music (enable after adding valid file):
+    // if (bgMusic) {
+    //   bgMusic.loop();
+    // }
   }
 }
 
@@ -260,9 +271,9 @@ function resetEnemies() {
   let rows = min(4 + wave - 1, 8); // Start at 4 rows, add 1 per wave, cap at 8
   for (let i = 0; i < 6; i++) {
     for (let j = 0; j < rows; j++) {
-      let y = j * 50 + 50;
-      if (y < height - 100 - 20) { // Ensure enemies spawn above restricted area
-        enemies.push(new Enemy(i * 70 + 50, y, i, j));
+      let y = j * 50 + 60;
+      if (y < height - 150 - 20) { // Adjusted for larger canvas
+        enemies.push(new Enemy(i * 80 + 60, y, i, j)); // Wider spacing
       }
     }
   }
@@ -274,7 +285,7 @@ class Player {
     this.width = 40;
     this.height = 20;
     this.x = width / 2 - this.width / 2;
-    this.y = height - 40;
+    this.y = height - 50; // Adjusted for larger canvas
     this.speed = 5;
     this.shootCooldown = 30; // Default cooldown (frames)
     this.shootTimer = 0;
@@ -315,9 +326,11 @@ class Player {
         bullets.push(new Bullet(this.x + this.width / 2, this.y, 0));
       }
       this.shootTimer = this.shootCooldown;
-      // Play firing sound
-      fireSound.setVolume(0.5);
-      fireSound.play();
+      // Play firing sound (enable after adding valid file):
+      // if (fireSound) {
+      //   fireSound.setVolume(0.5);
+      //   fireSound.play();
+      // }
     }
   }
   
