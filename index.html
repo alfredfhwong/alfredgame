@@ -1,0 +1,464 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Space Invaders Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/addons/p5.sound.min.js"></script>
+</head>
+<body>
+<script>
+let player;
+let bullets = [];
+let enemies = [];
+let enemyBullets = [];
+let powerUps = [];
+let score = 0;
+let lives = 3;
+let wave = 1;
+let gameState = 'playing';
+let bgMusic;
+let fireSound;
+let hitSound;
+
+
+function preload() {
+  // Load audio files (replace with actual URLs or local paths)
+  bgMusic = loadSound('https://example.com/sci-fi-ambient-loop.mp3');
+  fireSound = loadSound('https://example.com/laser-zap.mp3');
+  hitSound = loadSound('https://example.com/explosion.mp3');
+}
+
+class Enemy {
+  constructor(x, y, i, j) {
+    this.initialX = x;
+    this.y = y;
+    this.width = 30;
+    this.height = 20;
+    this.vy = 0.4; // Faster downward drift
+    this.amplitude = 30 + i * 10; // Vary amplitude by column (30 to 80)
+    this.frequency = 0.03 + j * 0.015; // Vary frequency by row (0.03 to 0.075)
+    this.phase = i * 0.5; // Vary phase by column for offset
+    this.time = 0;
+  }
+  
+  update() {
+    // Update position with sinusoidal horizontal movement
+    this.x = this.initialX + this.amplitude * sin(this.frequency * this.time + this.phase);
+    this.y += this.vy;
+    
+    // Constrain to canvas boundaries
+    this.x = constrain(this.x, 0, width - this.width);
+    this.y = constrain(this.y, 0, height - 100 - this.height);
+    
+    // Increment time for continuous movement
+    this.time += 1;
+    
+    // Bounce off edges by reversing vertical velocity (rare case)
+    if (this.y <= 0 || this.y >= height - 100 - this.height) {
+      this.vy = -this.vy;
+    }
+  }
+  
+  show() {
+    push();
+    translate(this.x, this.y);
+    fill(100, 0, 150); // Dark purple for spaceship body
+    // Trapezoid body (wider at bottom, narrower at top)
+    quad(5, 0, 25, 0, 30, 20, 0, 20);
+    // Wing triangles
+    fill(100, 0, 150);
+    triangle(0, 10, 5, 10, 0, 15); // Left wing
+    triangle(25, 10, 30, 10, 30, 15); // Right wing
+    // Cockpit circle
+    fill(0, 255, 0); // Green cockpit
+    ellipse(15, 5, 8, 8);
+    pop();
+  }
+}
+
+function setup() {
+  createCanvas(600, 400);
+  player = new Player();
+  resetEnemies();
+  // Start background music
+  bgMusic.setVolume(0.3); // Quieter background
+  bgMusic.loop();
+}
+
+function draw() {
+  background(0);
+  
+  if (gameState === 'playing') {
+    // Update and show player
+    player.update();
+    player.show();
+    
+    // Update and show player bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      bullets[i].update();
+      bullets[i].show();
+      if (bullets[i].offscreen()) {
+        bullets.splice(i, 1);
+        continue;
+      }
+      // Check collisions with enemies
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        if (bullets[i] && bullets[i].hits(enemies[j])) {
+          // Spawn power-up with 10% chance
+          if (random(1) < 0.1) {
+            powerUps.push(new PowerUp(enemies[j].x + enemies[j].width / 2, enemies[j].y));
+          }
+          enemies.splice(j, 1);
+          bullets.splice(i, 1);
+          score += 10;
+          // Play hit sound
+          hitSound.setVolume(0.5);
+          hitSound.play();
+          break;
+        }
+      }
+    }
+    
+    // Update and show enemies
+    for (let enemy of enemies) {
+      enemy.update();
+      enemy.show();
+      if (enemy.y + enemy.height > height - 100) { // Prevent enemies from reaching player area
+        resetEnemies();
+        score = max(0, score - 10);
+      }
+    }
+    
+    // Update and show enemy bullets
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      enemyBullets[i].update();
+      enemyBullets[i].show();
+      if (enemyBullets[i].offscreen()) {
+        enemyBullets.splice(i, 1);
+        continue;
+      }
+      // Check collision with player
+      if (enemyBullets[i] && enemyBullets[i].hits(player)) {
+        enemyBullets.splice(i, 1);
+        if (player.hasShield) {
+          player.hasShield = false; // Shield absorbs hit
+        } else {
+          lives -= 1;
+          if (lives <= 0) {
+            gameState = 'lost';
+          }
+        }
+      }
+    }
+    
+    // Update and show power-ups
+    for (let i = powerUps.length - 1; i >= 0; i--) {
+      powerUps[i].update();
+      powerUps[i].show();
+      if (powerUps[i].offscreen() || powerUps[i].timer <= 0) {
+        powerUps.splice(i, 1);
+        continue;
+      }
+      // Check collision with player
+      if (powerUps[i] && powerUps[i].hits(player)) {
+        powerUps[i].applyEffect(player);
+        powerUps.splice(i, 1);
+      }
+    }
+    
+    // Randomly make enemies shoot
+    if (random(1) < 0.02 && enemies.length > 0) {
+      let enemy = random(enemies);
+      enemyBullets.push(new EnemyBullet(enemy.x + enemy.width / 2, enemy.y + enemy.height));
+    }
+    
+    // Reset enemies if all destroyed
+    if (enemies.length === 0) {
+      resetEnemies();
+    }
+    
+    // Display score, lives, and wave
+    fill(255);
+    textSize(20);
+    textAlign(LEFT);
+    text(`Score: ${score}`, 10, 30);
+    text(`Lives: ${lives}`, 10, 60);
+    text(`Wave: ${wave}`, 10, 90);
+  } else if (gameState === 'lost') {
+    // Stop background music
+    bgMusic.stop();
+    fill(255);
+    textSize(32);
+    textAlign(CENTER);
+    text('Game Over!', width / 2, height / 2);
+    textSize(20);
+    text(`Final Score: ${score}`, width / 2, height / 2 + 40);
+    text('Press R to Restart', width / 2, height / 2 + 80);
+  }
+}
+
+function keyPressed() {
+  if (keyCode === 32 && gameState === 'playing') { // Spacebar to shoot
+    player.shoot();
+  } else if (keyCode === 82 && gameState === 'lost') { // R to restart
+    score = 0;
+    lives = 3;
+    wave = 1;
+    bullets = [];
+    enemyBullets = [];
+    powerUps = [];
+    player = new Player();
+    resetEnemies();
+    gameState = 'playing';
+    // Restart background music
+    bgMusic.loop();
+  }
+}
+
+function resetEnemies() {
+  enemies = [];
+  let rows = min(4 + wave - 1, 8); // Start at 4 rows, add 1 per wave, cap at 8
+  for (let i = 0; i < 6; i++) {
+    for (let j = 0; j < rows; j++) {
+      let y = j * 50 + 50;
+      if (y < height - 100 - 20) { // Ensure enemies spawn above restricted area
+        enemies.push(new Enemy(i * 70 + 50, y, i, j));
+      }
+    }
+  }
+  wave++; // Increment wave for next reset
+}
+
+class Player {
+  constructor() {
+    this.width = 40;
+    this.height = 20;
+    this.x = width / 2 - this.width / 2;
+    this.y = height - 40;
+    this.speed = 5;
+    this.shootCooldown = 30; // Default cooldown (frames)
+    this.shootTimer = 0;
+    this.multiBulletTimer = 0;
+    this.hasShield = false;
+  }
+  
+  update() {
+    if (keyIsDown(LEFT_ARROW)) {
+      this.x -= this.speed;
+    }
+    if (keyIsDown(RIGHT_ARROW)) {
+      this.x += this.speed;
+    }
+    this.x = constrain(this.x, 0, width - this.width);
+    
+    // Update timers
+    if (this.shootTimer > 0) {
+      this.shootTimer--;
+    }
+    if (this.multiBulletTimer > 0) {
+      this.multiBulletTimer--;
+      if (this.multiBulletTimer <= 0) {
+        // Multi-Bullet effect ends
+      }
+    }
+  }
+  
+  shoot() {
+    if (this.shootTimer <= 0) {
+      if (this.multiBulletTimer > 0) {
+        // Shoot three bullets in a spread
+        bullets.push(new Bullet(this.x + this.width / 2, this.y, 0)); // Straight
+        bullets.push(new Bullet(this.x + this.width / 2, this.y, -15)); // Left angle
+        bullets.push(new Bullet(this.x + this.width / 2, this.y, 15)); // Right angle
+      } else {
+        // Single bullet
+        bullets.push(new Bullet(this.x + this.width / 2, this.y, 0));
+      }
+      this.shootTimer = this.shootCooldown;
+      // Play firing sound
+      fireSound.setVolume(0.5);
+      fireSound.play();
+    }
+  }
+  
+  show() {
+    push();
+    translate(this.x, this.y);
+    fill(200, 200, 200); // Light gray for plane body
+    // Plane body (main rectangle)
+    rect(10, 5, 20, 10);
+    // Nose (triangle at front)
+    triangle(30, 5, 30, 15, 40, 10);
+    // Wings (rectangles on sides)
+    rect(5, 8, 5, 4); // Left wing
+    rect(30, 8, 5, 4); // Right wing
+    // Cockpit (small rectangle on top)
+    fill(150, 150, 255); // Blue-ish for cockpit
+    rect(15, 3, 10, 4);
+    // Draw shield if active
+    if (this.hasShield) {
+      noFill();
+      stroke(0, 255, 255); // Cyan outline
+      ellipse(20, 10, 50, 30); // Shield ellipse around plane
+      noStroke();
+    }
+    pop();
+  }
+}
+
+class Bullet {
+  constructor(x, y, angle) {
+    this.x = x;
+    this.y = y;
+    this.r = 4;
+    this.speed = 7; // Absolute speed
+    this.vx = -this.speed * sin(radians(angle)); // Horizontal component
+    this.vy = -this.speed * cos(radians(angle)); // Vertical component
+  }
+  
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+  }
+  
+  show() {
+    fill(255, 255, 0);
+    ellipse(this.x, this.y, this.r * 2);
+  }
+  
+  offscreen() {
+    return this.y < 0 || this.x < 0 || this.x > width || this.y > height;
+  }
+  
+  hits(enemy) {
+    let d = dist(this.x, this.y, enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
+    return d < this.r + enemy.width / 2;
+  }
+}
+
+class EnemyBullet {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.r = 4;
+    this.speed = 7; // Faster bullets
+  }
+  
+  update() {
+    this.y += this.speed;
+  }
+  
+  show() {
+    fill(255, 0, 255);
+    ellipse(this.x, this.y, this.r * 2);
+  }
+  
+  offscreen() {
+    return this.y > height;
+  }
+  
+  hits(player) {
+    let d = dist(this.x, this.y, player.x + player.width / 2, player.y + player.height / 2);
+    return d < this.r + player.width / 2;
+  }
+}
+
+class PowerUp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.width = 10;
+    this.height = 10;
+    this.speed = 2;
+    this.type = random(['multiBullet', 'shield']);
+    this.timer = 600; // 10 seconds at 60 FPS
+  }
+  
+  update() {
+    this.y += this.speed;
+    this.timer--; // Decrease timer each frame
+  }
+  
+  show() {
+    push();
+    translate(this.x, this.y);
+    if (this.type === 'multiBullet') {
+      // Three yellow circles in a triangular spread
+      fill(255, 255, 0); // Yellow like bullets
+      ellipse(-3, 3, 4, 4); // Left bullet
+      ellipse(3, 3, 4, 4); // Right bullet
+      ellipse(0, -3, 4, 4); // Top bullet
+    } else if (this.type === 'shield') {
+      // Cyan hexagon
+      fill(0, 255, 255); // Cyan like shield
+      beginShape();
+      for (let a = 0; a < TWO_PI; a += TWO_PI / 6) {
+        let px = cos(a) * 5;
+        let py = sin(a) * 5;
+        vertex(px, py);
+      }
+      endShape(CLOSE);
+    }
+    pop();
+  }
+  
+  offscreen() {
+    return this.y > height;
+  }
+  
+  hits(player) {
+    let d = dist(this.x, this.y + this.height / 2, player.x + player.width / 2, player.y + player.height / 2);
+    return d < this.width / 2 + player.width / 2;
+  }
+  
+  applyEffect(player) {
+    if (this.type === 'multiBullet') {
+      player.multiBulletTimer = 600; // 10 seconds at 60 FPS
+    } else if (this.type === 'shield') {
+      player.hasShield = true; // Activate shield
+    }
+  }
+}
+</script>
+</body>
+</html>
