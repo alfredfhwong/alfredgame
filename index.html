@@ -88,48 +88,48 @@ function preload() {
 
   // Attempt to load audio files from root directory (WAV first, then MP3 if WAV fails)
   try {
-    bgMusic = loadSound('/spacegame-bg.wav');
+    bgMusic = loadSound('spacegame-bg.wav');
     bgMusicLoaded = true;
   } catch (e) {
     console.error('Failed to load WAV background music (/spacegame-bg.wav):', e.message);
     try {
-      bgMusic = loadSound('/spacegame-bg.mp3');
+      bgMusic = loadSound('spacegame-bg.mp3');
       bgMusicLoaded = true;
       console.log('Successfully loaded MP3 fallback for background music.');
     } catch (e2) {
-      console.error('Failed to load MP3 background music (/spacegame-bg.mp3):', e2.message);
+      console.error('Failed to load MP3 background music (spacegame-bg.mp3):', e2.message);
       bgMusic = null;
       bgMusicLoaded = false;
     }
   }
 
   try {
-    fireSound = loadSound('/spacegame-shooting.wav');
+    fireSound = loadSound('spacegame-shooting.wav');
     fireSoundLoaded = true;
   } catch (e) {
-    console.error('Failed to load WAV firing sound (/spacegame-shooting.wav):', e.message);
+    console.error('Failed to load WAV firing sound (spacegame-shooting.wav):', e.message);
     try {
-      fireSound = loadSound('/spacegame-shooting.mp3');
+      fireSound = loadSound('spacegame-shooting.mp3');
       fireSoundLoaded = true;
       console.log('Successfully loaded MP3 fallback for firing sound.');
     } catch (e2) {
-      console.error('Failed to load MP3 firing sound (/spacegame-shooting.mp3):', e2.message);
+      console.error('Failed to load MP3 firing sound (spacegame-shooting.mp3):', e2.message);
       fireSound = null;
       fireSoundLoaded = false;
     }
   }
 
   try {
-    hitSound = loadSound('/spacegame-shothit.wav');
+    hitSound = loadSound('spacegame-shothit.wav');
     hitSoundLoaded = true;
   } catch (e) {
-    console.error('Failed to load WAV hit sound (/spacegame-shothit.wav):', e.message);
+    console.error('Failed to load WAV hit sound (spacegame-shothit.wav):', e.message);
     try {
-      hitSound = loadSound('/spacegame-shothit.mp3');
+      hitSound = loadSound('spacegame-shothit.mp3');
       hitSoundLoaded = true;
       console.log('Successfully loaded MP3 fallback for hit sound.');
     } catch (e2) {
-      console.error('Failed to load MP3 hit sound (/spacegame-shothit.mp3):', e2.message);
+      console.error('Failed to load MP3 hit sound (spacegame-shothit.mp3):', e2.message);
       hitSound = null;
       hitSoundLoaded = false;
     }
