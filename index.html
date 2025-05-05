@@ -62,17 +62,77 @@ let powerUps = [];
 let score = 0;
 let lives = 3;
 let wave = 1;
-let gameState = 'playing';
-let bgMusic;
-let fireSound;
-let hitSound;
+let gameState = 'start';
+let bgMusic = null;
+let fireSound = null;
+let hitSound = null;
+let bgMusicLoaded = false;
+let fireSoundLoaded = false;
+let hitSoundLoaded = false;
+let isMobile = false;
+let moveLeft = false;
+let moveRight = false;
+let isFiring = false;
 
 function preload() {
-  // Audio loading disabled to prevent "Loading" issue in preview.
-  // To enable audio, uncomment and ensure files are in the correct local path:
-  bgMusic = loadSound('spacegame-bg.wav');
-  fireSound = loadSound('spacegame-shooting.wav');
-  hitSound = loadSound('spacegame-shothit.wav');
+  // Skip audio loading in preview-like environments
+  const isPreview = window.location.host.includes('localhost') || window.location.host === '';
+  if (isPreview) {
+    console.log('Running in preview mode: skipping audio loading to avoid errors.');
+    return;
+  }
+
+  // Suppress p5.js default audio error logging
+  p5.prototype._onerror = () => {};
+
+  // Attempt to load audio files (WAV first, then MP3 if WAV fails)
+  try {
+    bgMusic = loadSound('./assets/spacegame-bg.wav');
+    bgMusicLoaded = true;
+  } catch (e) {
+    console.error('Failed to load WAV background music (spacegame-bg.wav):', e.message);
+    try {
+      bgMusic = loadSound('./assets/spacegame-bg.mp3');
+      bgMusicLoaded = true;
+      console.log('Successfully loaded MP3 fallback for background music.');
+    } catch (e2) {
+      console.error('Failed to load MP3 background music (spacegame-bg.mp3):', e2.message);
+      bgMusic = null;
+      bgMusicLoaded = false;
+    }
+  }
+
+  try {
+    fireSound = loadSound('./assets/spacegame-shooting.wav');
+    fireSoundLoaded = true;
+  } catch (e) {
+    console.error('Failed to load WAV firing sound (spacegame-shooting.wav):', e.message);
+    try {
+      fireSound = loadSound('./assets/spacegame-shooting.mp3');
+      fireSoundLoaded = true;
+      console.log('Successfully loaded MP3 fallback for firing sound.');
+    } catch (e2) {
+      console.error('Failed to load MP3 firing sound (spacegame-shooting.mp3):', e2.message);
+      fireSound = null;
+      fireSoundLoaded = false;
+    }
+  }
+
+  try {
+    hitSound = loadSound('./assets/spacegame-shothit.wav');
+    hitSoundLoaded = true;
+  } catch (e) {
+    console.error('Failed to load WAV hit sound (spacegame-shothit.wav):', e.message);
+    try {
+      hitSound = loadSound('./assets/spacegame-shothit.mp3');
+      hitSoundLoaded = true;
+      console.log('Successfully loaded MP3 fallback for hit sound.');
+    } catch (e2) {
+      console.error('Failed to load MP3 hit sound (spacegame-shothit.mp3):', e2.message);
+      hitSound = null;
+      hitSoundLoaded = false;
+    }
+  }
 }
 
 class Enemy {
@@ -125,17 +185,33 @@ class Enemy {
 
 function setup() {
   createCanvas(800, 600); // Larger canvas
+  // Detect mobile device
+  isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  gameState = 'start'; // Start with welcome screen
   player = new Player();
   resetEnemies();
-  // Enable audio by uncommenting after adding valid files:
-  bgMusic.setVolume(0.3); // Quieter background
-  bgMusic.loop();
 }
 
 function draw() {
   background(0);
   
-  if (gameState === 'playing') {
+  if (gameState === 'start') {
+    // Draw welcome screen
+    fill(255);
+    textSize(48);
+    textAlign(CENTER);
+    text('Space Invaders', width / 2, height / 3);
+    textSize(24);
+    text('Move with arrows (or on-screen buttons on mobile).', width / 2, height / 2 - 60);
+    text('Shoot with spacebar (or fire button).', width / 2, height / 2 - 20);
+    text('Destroy enemies, collect power-ups, avoid enemy bullets.', width / 2, height / 2 + 20);
+    // Draw start button
+    fill(100, 100, 255);
+    rect(width / 2 - 100, height / 2 + 80, 200, 50);
+    fill(255);
+    textSize(24);
+    text('Start Game', width / 2, height / 2 + 110);
+  } else if (gameState === 'playing') {
     // Update and show player
     player.update();
     player.show();
@@ -158,11 +234,11 @@ function draw() {
           enemies.splice(j, 1);
           bullets.splice(i, 1);
           score += 10;
-          // Play hit sound (enable after adding valid file):
-          if (hitSound) {
-             hitSound.setVolume(0.5);
-             hitSound.play();
-           }
+          // Play hit sound if available
+          if (hitSoundLoaded && hitSound) {
+            hitSound.setVolume(0.5);
+            hitSound.play();
+          }
           break;
         }
       }
@@ -226,24 +302,93 @@ function draw() {
       resetEnemies();
     }
     
+    // Draw mobile controls if on mobile
+    if (isMobile) {
+      // Left arrow button
+      fill(100, 100, 255);
+      rect(20, height - 80, 60, 60);
+      fill(255);
+      textSize(24);
+      textAlign(CENTER);
+      text('←', 50, height - 40);
+      // Right arrow button
+      fill(100, 100, 255);
+      rect(100, height - 80, 60, 60);
+      fill(255);
+      text('→', 130, height - 40);
+      // Fire button
+      fill(255, 100, 100);
+      rect(width - 80, height - 80, 60, 60);
+      fill(255);
+      text('Fire', width - 50, height - 40);
+    }
+    
     // Display score, lives, and wave
     fill(255);
-    textSize(24); // Slightly larger text for larger canvas
+    textSize(24);
     textAlign(LEFT);
     text(`Score: ${score}`, 15, 40);
     text(`Lives: ${lives}`, 15, 80);
     text(`Wave: ${wave}`, 15, 120);
   } else if (gameState === 'lost') {
-    // Stop background music (enable after adding valid file):
-    // if (bgMusic) bgMusic.stop();
+    // Stop background music if available
+    if (bgMusicLoaded && bgMusic) {
+      bgMusic.stop();
+    }
     fill(255);
-    textSize(48); // Larger text for game over
+    textSize(48);
     textAlign(CENTER);
     text('Game Over!', width / 2, height / 2);
     textSize(24);
     text(`Final Score: ${score}`, width / 2, height / 2 + 60);
     text('Press R to Restart', width / 2, height / 2 + 120);
   }
+}
+
+function mousePressed() {
+  if (gameState === 'start') {
+    // Check if start button is clicked
+    let buttonX = width / 2 - 100;
+    let buttonY = height / 2 + 80;
+    let buttonWidth = 200;
+    let buttonHeight = 50;
+    if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
+        mouseY > buttonY && mouseY < buttonY + buttonHeight) {
+      gameState = 'playing';
+      // Start background music if available
+      if (bgMusicLoaded && bgMusic) {
+        bgMusic.setVolume(0.3);
+        bgMusic.loop();
+      }
+    }
+  }
+}
+
+function touchStarted() {
+  if (gameState === 'playing' && isMobile) {
+    // Left arrow button
+    if (mouseX > 20 && mouseX < 80 && mouseY > height - 80 && mouseY < height - 20) {
+      moveLeft = true;
+    }
+    // Right arrow button
+    if (mouseX > 100 && mouseX < 160 && mouseY > height - 80 && mouseY < height - 20) {
+      moveRight = true;
+    }
+    // Fire button
+    if (mouseX > width - 80 && mouseX < width - 20 && mouseY > height - 80 && mouseY < height - 20) {
+      isFiring = true;
+    }
+  }
+  return false; // Prevent default touch behavior
+}
+
+function touchEnded() {
+  if (gameState === 'playing' && isMobile) {
+    moveLeft = false;
+    moveRight = false;
+    isFiring = false;
+  }
+  return false;
 }
 
 function keyPressed() {
@@ -259,10 +404,10 @@ function keyPressed() {
     player = new Player();
     resetEnemies();
     gameState = 'playing';
-    // Restart background music (enable after adding valid file):
-    if (bgMusic) {
-       bgMusic.loop();
-        }
+    // Restart background music if available
+    if (bgMusicLoaded && bgMusic) {
+      bgMusic.loop();
+    }
   }
 }
 
@@ -294,11 +439,14 @@ class Player {
   }
   
   update() {
-    if (keyIsDown(LEFT_ARROW)) {
-      this.x -= this.speed;
-    }
-    if (keyIsDown(RIGHT_ARROW)) {
-      this.x += this.speed;
+    // Handle movement
+    if (isMobile) {
+      if (moveLeft) this.x -= this.speed;
+      if (moveRight) this.x += this.speed;
+      if (isFiring) this.shoot();
+    } else {
+      if (keyIsDown(LEFT_ARROW)) this.x -= this.speed;
+      if (keyIsDown(RIGHT_ARROW)) this.x += this.speed;
     }
     this.x = constrain(this.x, 0, width - this.width);
     
@@ -326,11 +474,11 @@ class Player {
         bullets.push(new Bullet(this.x + this.width / 2, this.y, 0));
       }
       this.shootTimer = this.shootCooldown;
-      // Play firing sound (enable after adding valid file):
-      if (fireSound) {
-         fireSound.setVolume(0.5);
-         fireSound.play();
-       }
+      // Play firing sound if available
+      if (fireSoundLoaded && fireSound) {
+        fireSound.setVolume(0.5);
+        fireSound.play();
+      }
     }
   }
   
