@@ -73,6 +73,7 @@ let isMobile = false;
 let moveLeft = false;
 let moveRight = false;
 let isFiring = false;
+let stars = [];
 
 function preload() {
   // Skip audio loading in preview-like environments
@@ -85,101 +86,53 @@ function preload() {
   // Suppress p5.js default audio error logging
   p5.prototype._onerror = () => {};
 
-  // Attempt to load audio files (WAV first, then MP3 if WAV fails)
+  // Attempt to load audio files from root directory (WAV first, then MP3 if WAV fails)
   try {
-    bgMusic = loadSound('spacegame-bg.wav');
+    bgMusic = loadSound('/spacegame-bg.wav');
     bgMusicLoaded = true;
   } catch (e) {
-    console.error('Failed to load WAV background music (spacegame-bg.wav):', e.message);
+    console.error('Failed to load WAV background music (/spacegame-bg.wav):', e.message);
     try {
-      bgMusic = loadSound('spacegame-bg.mp3');
+      bgMusic = loadSound('/spacegame-bg.mp3');
       bgMusicLoaded = true;
       console.log('Successfully loaded MP3 fallback for background music.');
     } catch (e2) {
-      console.error('Failed to load MP3 background music (spacegame-bg.mp3):', e2.message);
+      console.error('Failed to load MP3 background music (/spacegame-bg.mp3):', e2.message);
       bgMusic = null;
       bgMusicLoaded = false;
     }
   }
 
   try {
-    fireSound = loadSound('spacegame-shooting.wav');
+    fireSound = loadSound('/spacegame-shooting.wav');
     fireSoundLoaded = true;
   } catch (e) {
-    console.error('Failed to load WAV firing sound (spacegame-shooting.wav):', e.message);
+    console.error('Failed to load WAV firing sound (/spacegame-shooting.wav):', e.message);
     try {
-      fireSound = loadSound('spacegame-shooting.mp3');
+      fireSound = loadSound('/spacegame-shooting.mp3');
       fireSoundLoaded = true;
       console.log('Successfully loaded MP3 fallback for firing sound.');
     } catch (e2) {
-      console.error('Failed to load MP3 firing sound (spacegame-shooting.mp3):', e2.message);
+      console.error('Failed to load MP3 firing sound (/spacegame-shooting.mp3):', e2.message);
       fireSound = null;
       fireSoundLoaded = false;
     }
   }
 
   try {
-    hitSound = loadSound('spacegame-shothit.wav');
+    hitSound = loadSound('/spacegame-shothit.wav');
     hitSoundLoaded = true;
   } catch (e) {
-    console.error('Failed to load WAV hit sound (spacegame-shothit.wav):', e.message);
+    console.error('Failed to load WAV hit sound (/spacegame-shothit.wav):', e.message);
     try {
-      hitSound = loadSound('spacegame-shothit.mp3');
+      hitSound = loadSound('/spacegame-shothit.mp3');
       hitSoundLoaded = true;
       console.log('Successfully loaded MP3 fallback for hit sound.');
     } catch (e2) {
-      console.error('Failed to load MP3 hit sound (spacegame-shothit.mp3):', e2.message);
+      console.error('Failed to load MP3 hit sound (/spacegame-shothit.mp3):', e2.message);
       hitSound = null;
       hitSoundLoaded = false;
     }
-  }
-}
-
-class Enemy {
-  constructor(x, y, i, j) {
-    this.initialX = x;
-    this.y = y;
-    this.width = 30;
-    this.height = 20;
-    this.vy = 0.4; // Faster downward drift
-    this.amplitude = 30 + i * 10; // Vary amplitude by column (30 to 80)
-    this.frequency = 0.03 + j * 0.015; // Vary frequency by row (0.03 to 0.075)
-    this.phase = i * 0.5; // Vary phase by column for offset
-    this.time = 0;
-  }
-  
-  update() {
-    // Update position with sinusoidal horizontal movement
-    this.x = this.initialX + this.amplitude * sin(this.frequency * this.time + this.phase);
-    this.y += this.vy;
-    
-    // Constrain to canvas boundaries
-    this.x = constrain(this.x, 0, width - this.width);
-    this.y = constrain(this.y, 0, height - 150 - this.height);
-    
-    // Increment time for continuous movement
-    this.time += 1;
-    
-    // Bounce off edges by reversing vertical velocity (rare case)
-    if (this.y <= 0 || this.y >= height - 150 - this.height) {
-      this.vy = -this.vy;
-    }
-  }
-  
-  show() {
-    push();
-    translate(this.x, this.y);
-    fill(100, 0, 150); // Dark purple for spaceship body
-    // Trapezoid body (wider at bottom, narrower at top)
-    quad(5, 0, 25, 0, 30, 20, 0, 20);
-    // Wing triangles
-    fill(100, 0, 150);
-    triangle(0, 10, 5, 10, 0, 15); // Left wing
-    triangle(25, 10, 30, 10, 30, 15); // Right wing
-    // Cockpit circle
-    fill(0, 255, 0); // Green cockpit
-    ellipse(15, 5, 8, 8);
-    pop();
   }
 }
 
@@ -190,27 +143,53 @@ function setup() {
   gameState = 'start'; // Start with welcome screen
   player = new Player();
   resetEnemies();
+  // Initialize stars for start screen
+  for (let i = 0; i < 200; i++) {
+    stars.push({
+      x: random(width),
+      y: random(height),
+      size: random(1, 3),
+      opacity: random(50, 255)
+    });
+  }
 }
 
 function draw() {
   background(0);
   
   if (gameState === 'start') {
+    // Draw starry background
+    for (let star of stars) {
+      fill(255, 255, 255, star.opacity + sin(frameCount * 0.05) * 50);
+      noStroke();
+      ellipse(star.x, star.y, star.size, star.size);
+    }
+
     // Draw welcome screen
     fill(255);
-    textSize(48);
+    textStyle(BOLD);
+    textSize(60);
     textAlign(CENTER);
-    text('Space Invaders', width / 2, height / 3);
-    textSize(24);
-    text('Move with arrows (or on-screen buttons on mobile).', width / 2, height / 2 - 60);
-    text('Shoot with spacebar (or fire button).', width / 2, height / 2 - 20);
-    text('Destroy enemies, collect power-ups, avoid enemy bullets.', width / 2, height / 2 + 20);
-    // Draw start button
-    fill(100, 100, 255);
-    rect(width / 2 - 100, height / 2 + 80, 200, 50);
-    fill(255);
-    textSize(24);
-    text('Start Game', width / 2, height / 2 + 110);
+    text('Space Invaders', width / 2, height / 3 - 50);
+    textSize(32);
+    fill(255, 255, 255, 200 + sin(frameCount * 0.05) * 55); // Fading effect
+    text('Defend the Galaxy!', width / 2, height / 3 + 20);
+    textSize(28);
+    text('Move: Arrows (or on-screen buttons on mobile)', width / 2, height / 2 - 60);
+    text('Shoot: Spacebar (or fire button)', width / 2, height / 2 - 20);
+    text('Destroy enemies, collect power-ups, avoid enemy bullets', width / 2, height / 2 + 20);
+    
+    // Draw start button with glowing effect
+    let glow = 128 + sin(frameCount * 0.1) * 127;
+    stroke(0, 255, 255, glow); // Pulsating cyan border
+    strokeWeight(4);
+    fill(50, 150, 255); // Neon blue
+    rect(width / 2 - 125, height / 2 + 80, 250, 60, 10); // Rounded corners
+    noStroke();
+    fill(255, 255, 0); // Yellow text
+    textSize(28);
+    text('Start Game', width / 2, height / 2 + 115);
+    textStyle(NORMAL);
   } else if (gameState === 'playing') {
     // Update and show player
     player.update();
@@ -312,7 +291,7 @@ function draw() {
       textAlign(CENTER);
       text('←', 50, height - 40);
       // Right arrow button
-      fill(100, 100, 255);
+      fill(100, 205, 255);
       rect(100, height - 80, 60, 60);
       fill(255);
       text('→', 130, height - 40);
@@ -348,10 +327,10 @@ function draw() {
 function mousePressed() {
   if (gameState === 'start') {
     // Check if start button is clicked
-    let buttonX = width / 2 - 100;
+    let buttonX = width / 2 - 125;
     let buttonY = height / 2 + 80;
-    let buttonWidth = 200;
-    let buttonHeight = 50;
+    let buttonWidth = 250;
+    let buttonHeight = 60;
     if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
         mouseY > buttonY && mouseY < buttonY + buttonHeight) {
       gameState = 'playing';
@@ -365,7 +344,22 @@ function mousePressed() {
 }
 
 function touchStarted() {
-  if (gameState === 'playing' && isMobile) {
+  if (gameState === 'start') {
+    // Check if start button is touched
+    let buttonX = width / 2 - 125;
+    let buttonY = height / 2 + 80;
+    let buttonWidth = 250;
+    let buttonHeight = 60;
+    if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
+        mouseY > buttonY && mouseY < buttonY + buttonHeight) {
+      gameState = 'playing';
+      // Start background music if available
+      if (bgMusicLoaded && bgMusic) {
+        bgMusic.setVolume(0.3);
+        bgMusic.loop();
+      }
+    }
+  } else if (gameState === 'playing' && isMobile) {
     // Left arrow button
     if (mouseX > 20 && mouseX < 80 && mouseY > height - 80 && mouseY < height - 20) {
       moveLeft = true;
@@ -423,6 +417,54 @@ function resetEnemies() {
     }
   }
   wave++; // Increment wave for next reset
+}
+
+class Enemy {
+  constructor(x, y, i, j) {
+    this.initialX = x;
+    this.y = y;
+    this.width = 30;
+    this.height = 20;
+    this.vy = 0.4; // Faster downward drift
+    this.amplitude = 30 + i * 10; // Vary amplitude by column (30 to 80)
+    this.frequency = 0.03 + j * 0.015; // Vary frequency by row (0.03 to 0.075)
+    this.phase = i * 0.5; // Vary phase by column for offset
+    this.time = 0;
+  }
+  
+  update() {
+    // Update position with sinusoidal horizontal movement
+    this.x = this.initialX + this.amplitude * sin(this.frequency * this.time + this.phase);
+    this.y += this.vy;
+    
+    // Constrain to canvas boundaries
+    this.x = constrain(this.x, 0, width - this.width);
+    this.y = constrain(this.y, 0, height - 150 - this.height);
+    
+    // Increment time for continuous movement
+    this.time += 1;
+    
+    // Bounce off edges by reversing vertical velocity (rare case)
+    if (this.y <= 0 || this.y >= height - 150 - this.height) {
+      this.vy = -this.vy;
+    }
+  }
+  
+  show() {
+    push();
+    translate(this.x, this.y);
+    fill(100, 0, 150); // Dark purple for spaceship body
+    // Trapezoid body (wider at bottom, narrower at top)
+    quad(5, 0, 25, 0, 30, 20, 0, 20);
+    // Wing triangles
+    fill(100, 0, 150);
+    triangle(0, 10, 5, 10, 0, 15); // Left wing
+    triangle(25, 10, 30, 10, 30, 15); // Right wing
+    // Cockpit circle
+    fill(0, 255, 0); // Green cockpit
+    ellipse(15, 5, 8, 8);
+    pop();
+  }
 }
 
 class Player {
