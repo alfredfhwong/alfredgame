@@ -43,7 +43,6 @@
   <meta charset="UTF-8">
   <title>Space Invaders Game</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/addons/p5.sound.min.js"></script>
   <style>
     canvas {
       display: block;
@@ -63,13 +62,6 @@ let score = 0;
 let lives = 3;
 let wave = 1;
 let gameState = 'start';
-let gameMode = 'classic'; // classic or endless
-let bgMusic = null;
-let fireSound = null;
-let hitSound = null;
-let bgMusicLoaded = false;
-let fireSoundLoaded = false;
-let hitSoundLoaded = false;
 let isMobile = false;
 let moveLeft = false;
 let moveRight = false;
@@ -77,77 +69,14 @@ let isFiring = false;
 let stars = [];
 let leaderboard = [];
 let inputName = '';
-let showNameInput = false;
-
-function preload() {
-  // Skip audio loading in preview-like environments
-  const isPreview = window.location.host.includes('localhost') || window.location.host === '';
-  if (isPreview) {
-    console.log('Running in preview mode: skipping audio loading to avoid errors.');
-    return;
-  }
-
-  // Suppress p5.js default audio error logging
-  p5.prototype._onerror = () => {};
-
-  // Attempt to load audio files from root directory (WAV first, then MP3 if WAV fails)
-  try {
-    bgMusic = loadSound('/spacegame-bg.wav');
-    bgMusicLoaded = true;
-  } catch (e) {
-    console.error('Failed to load WAV background music (/spacegame-bg.wav):', e.message);
-    try {
-      bgMusic = loadSound('/spacegame-bg.mp3');
-      bgMusicLoaded = true;
-      console.log('Successfully loaded MP3 fallback for background music.');
-    } catch (e2) {
-      console.error('Failed to load MP3 background music (/spacegame-bg.mp3):', e2.message);
-      bgMusic = null;
-      bgMusicLoaded = false;
-    }
-  }
-
-  try {
-    fireSound = loadSound('/spacegame-shooting.wav');
-    fireSoundLoaded = true;
-  } catch (e) {
-    console.error('Failed to load WAV firing sound (/spacegame-shooting.wav):', e.message);
-    try {
-      fireSound = loadSound('/spacegame-shooting.mp3');
-      fireSoundLoaded = true;
-      console.log('Successfully loaded MP3 fallback for firing sound.');
-    } catch (e2) {
-      console.error('Failed to load MP3 firing sound (/spacegame-shooting.mp3):', e2.message);
-      fireSound = null;
-      fireSoundLoaded = false;
-    }
-  }
-
-  try {
-    hitSound = loadSound('/spacegame-shothit.wav');
-    hitSoundLoaded = true;
-  } catch (e) {
-    console.error('Failed to load WAV hit sound (/spacegame-shothit.wav):', e.message);
-    try {
-      hitSound = loadSound('/spacegame-shothit.mp3');
-      hitSoundLoaded = true;
-      console.log('Successfully loaded MP3 fallback for hit sound.');
-    } catch (e2) {
-      console.error('Failed to load MP3 hit sound (/spacegame-shothit.mp3):', e2.message);
-      hitSound = null;
-      hitSoundLoaded = false;
-    }
-  }
-}
 
 function setup() {
-  createCanvas(800, 600); // Larger canvas
-  // Detect mobile device
+  console.log('Setup started');
+  createCanvas(800, 600);
   isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-  gameState = 'start'; // Start with welcome screen
+  gameState = 'start';
   player = new Player();
   resetEnemies();
-  // Initialize stars for start screen
   for (let i = 0; i < 200; i++) {
     stars.push({
       x: random(width),
@@ -156,7 +85,6 @@ function setup() {
       opacity: random(50, 255)
     });
   }
-  // Initialize leaderboard from localStorage
   if (localStorage.getItem('leaderboard')) {
     leaderboard = JSON.parse(localStorage.getItem('leaderboard'));
   } else {
@@ -168,48 +96,41 @@ function setup() {
       { name: 'Player5', score: 0 }
     ];
   }
+  console.log('Setup completed');
 }
 
 function draw() {
   background(0);
   
   if (gameState === 'start') {
-    // Draw starry background
     for (let star of stars) {
       fill(255, 255, 255, star.opacity + sin(frameCount * 0.05) * 50);
       noStroke();
       ellipse(star.x, star.y, star.size, star.size);
     }
-
-    // Draw welcome screen
     fill(255);
     textStyle(BOLD);
     textSize(60);
     textAlign(CENTER);
     text('Space Invaders', width / 2, height / 3 - 50);
     textSize(32);
-    fill(255, 255, 255, 200 + sin(frameCount * 0.05) * 55); // Fading effect
+    fill(255, 255, 255, 200 + sin(frameCount * 0.05) * 55);
     text('Defend the Galaxy!', width / 2, height / 3 + 20);
-    textSize(28);
-    text('Move: Arrows (or on-screen buttons on mobile)', width / 2, height / 2 - 60);
-    text('Shoot: Spacebar (or fire button)', width / 2, height / 2 - 20);
-    text('Destroy enemies, collect power-ups, avoid enemy bullets', width / 2, height / 2 + 20);
+    textSize(24);
+    text('Move: Arrows (or buttons on mobile)', width / 2, height / 2 - 30);
+    text('Shoot: Spacebar (or fire button)', width / 2, height / 2);
     
-    // Draw mode selection buttons
     let glow = 128 + sin(frameCount * 0.1) * 127;
-    stroke(0, 255, 255, glow); // Pulsating cyan border
+    stroke(0, 255, 255, glow);
     strokeWeight(4);
-    fill(50, 150, 255); // Neon blue
-    rect(width / 2 - 125, height / 2 + 60, 250, 60, 10); // Classic Mode button
-    rect(width / 2 - 125, height / 2 + 130, 250, 60, 10); // Endless Mode button
+    fill(50, 150, 255);
+    rect(width / 2 - 125, height / 2 + 60, 250, 60, 10);
     noStroke();
-    fill(255, 255, 0); // Yellow text
+    fill(255, 255, 0);
     textSize(28);
-    text('Classic Mode', width / 2, height / 2 + 95);
-    text('Endless Mode', width / 2, height / 2 + 165);
+    text('Start', width / 2, height / 2 + 95);
     textStyle(NORMAL);
 
-    // Draw leaderboard
     fill(255);
     textSize(20);
     textAlign(LEFT);
@@ -218,11 +139,9 @@ function draw() {
       text(`${i + 1}. ${leaderboard[i].name}: ${leaderboard[i].score}`, 20, 70 + i * 30);
     }
   } else if (gameState === 'playing') {
-    // Update and show player
     player.update();
     player.show();
     
-    // Update and show player bullets
     for (let i = bullets.length - 1; i >= 0; i--) {
       bullets[i].update();
       bullets[i].show();
@@ -230,27 +149,19 @@ function draw() {
         bullets.splice(i, 1);
         continue;
       }
-      // Check collisions with enemies
       for (let j = enemies.length - 1; j >= 0; j--) {
         if (bullets[i] && bullets[i].hits(enemies[j])) {
-          // Spawn power-up with 10% chance
           if (random(1) < 0.1) {
             powerUps.push(new PowerUp(enemies[j].x + enemies[j].width / 2, enemies[j].y));
           }
           enemies.splice(j, 1);
           bullets.splice(i, 1);
           score += 10;
-          // Play hit sound if available
-          if (hitSoundLoaded && hitSound) {
-            hitSound.setVolume(0.5);
-            hitSound.play();
-          }
           break;
         }
       }
     }
     
-    // Update and show enemies
     for (let enemy of enemies) {
       enemy.update();
       enemy.show();
@@ -260,7 +171,6 @@ function draw() {
       }
     }
     
-    // Update and show enemy bullets
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
       enemyBullets[i].update();
       enemyBullets[i].show();
@@ -268,25 +178,19 @@ function draw() {
         enemyBullets.splice(i, 1);
         continue;
       }
-      // Check collision with player
       if (enemyBullets[i] && enemyBullets[i].hits(player)) {
         enemyBullets.splice(i, 1);
         if (player.hasShield) {
-          player.hasShield = false; // Shield absorbs hit
-        } else if (gameMode === 'classic') {
+          player.hasShield = false;
+        } else {
           lives -= 1;
           if (lives <= 0) {
-            gameState = 'lost';
-            // Check if score qualifies for leaderboard
-            if (score > leaderboard[4].score) {
-              gameState = 'nameInput';
-            }
+            gameState = score > leaderboard[4].score ? 'nameInput' : 'lost';
           }
         }
       }
     }
     
-    // Update and show power-ups
     for (let i = powerUps.length - 1; i >= 0; i--) {
       powerUps[i].update();
       powerUps[i].show();
@@ -294,60 +198,45 @@ function draw() {
         powerUps.splice(i, 1);
         continue;
       }
-      // Check collision with player
       if (powerUps[i] && powerUps[i].hits(player)) {
         powerUps[i].applyEffect(player);
         powerUps.splice(i, 1);
       }
     }
     
-    // Randomly make enemies shoot
     if (random(1) < 0.02 && enemies.length > 0) {
       let enemy = random(enemies);
       enemyBullets.push(new EnemyBullet(enemy.x + enemy.width / 2, enemy.y + enemy.height));
     }
     
-    // Reset enemies if all destroyed
     if (enemies.length === 0) {
       resetEnemies();
     }
     
-    // Draw mobile controls if on mobile
     if (isMobile) {
-      // Left arrow button
       fill(100, 100, 255);
       rect(20, height - 80, 60, 60);
       fill(255);
       textSize(24);
       textAlign(CENTER);
       text('←', 50, height - 40);
-      // Right arrow button
       fill(100, 100, 255);
       rect(100, height - 80, 60, 60);
       fill(255);
       text('→', 130, height - 40);
-      // Fire button
       fill(255, 100, 100);
       rect(width - 80, height - 80, 60, 60);
       fill(255);
       text('Fire', width - 50, height - 40);
     }
     
-    // Display score, lives, and wave
     fill(255);
     textSize(24);
     textAlign(LEFT);
     text(`Score: ${score}`, 15, 40);
-    if (gameMode === 'classic') {
-      text(`Lives: ${lives}`, 15, 80);
-    }
+    text(`Lives: ${lives}`, 15, 80);
     text(`Wave: ${wave}`, 15, 120);
   } else if (gameState === 'lost') {
-    // Stop background music if available
-    if (bgMusicLoaded && bgMusic) {
-      bgMusic.stop();
-    }
-    // Draw starry background
     for (let star of stars) {
       fill(255, 255, 255, star.opacity + sin(frameCount * 0.05) * 50);
       noStroke();
@@ -359,22 +248,18 @@ function draw() {
     text('Game Over!', width / 2, height / 2 - 100);
     textSize(24);
     text(`Final Score: ${score}`, width / 2, height / 2 - 40);
-    text('Select Mode to Restart', width / 2, height / 2 + 20);
+    text('Press Start to Play Again', width / 2, height / 2 + 20);
     
-    // Draw restart mode buttons
     let glow = 128 + sin(frameCount * 0.1) * 127;
     stroke(0, 255, 255, glow);
     strokeWeight(4);
     fill(50, 150, 255);
-    rect(width / 2 - 125, height / 2 + 60, 250, 60, 10); // Classic Mode
-    rect(width / 2 - 125, height / 2 + 130, 250, 60, 10); // Endless Mode
+    rect(width / 2 - 125, height / 2 + 60, 250, 60, 10);
     noStroke();
     fill(255, 255, 0);
     textSize(24);
-    text('Classic Mode', width / 2, height / 2 + 95);
-    text('Endless Mode', width / 2, height / 2 + 165);
+    text('Start', width / 2, height / 2 + 95);
 
-    // Draw leaderboard
     fill(255);
     textSize(20);
     textAlign(LEFT);
@@ -383,7 +268,6 @@ function draw() {
       text(`${i + 1}. ${leaderboard[i].name}: ${leaderboard[i].score}`, 20, 70 + i * 30);
     }
   } else if (gameState === 'nameInput') {
-    // Draw starry background
     for (let star of stars) {
       fill(255, 255, 255, star.opacity + sin(frameCount * 0.05) * 50);
       noStroke();
@@ -395,13 +279,11 @@ function draw() {
     text('New High Score!', width / 2, height / 2 - 100);
     text(`Score: ${score}`, width / 2, height / 2 - 60);
     text('Enter Your Name:', width / 2, height / 2 - 20);
-    // Draw input field
     fill(50, 50, 50);
     rect(width / 2 - 150, height / 2, 300, 40);
     fill(255);
     textSize(24);
     text(inputName || 'Type your name', width / 2, height / 2 + 30);
-    // Draw submit button
     let glow = 128 + sin(frameCount * 0.1) * 127;
     stroke(0, 255, 255, glow);
     strokeWeight(4);
@@ -416,71 +298,24 @@ function draw() {
 
 function mousePressed() {
   if (gameState === 'start') {
-    // Check mode selection buttons
     let buttonX = width / 2 - 125;
-    let classicY = height / 2 + 60;
-    let endlessY = height / 2 + 130;
+    let startY = height / 2 + 60;
     let buttonWidth = 250;
     let buttonHeight = 60;
     if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
-        mouseY > classicY && mouseY < classicY + buttonHeight) {
-      gameMode = 'classic';
+        mouseY > startY && mouseY < startY + buttonHeight) {
       gameState = 'playing';
-      // Start background music if available
-      if (bgMusicLoaded && bgMusic) {
-        bgMusic.setVolume(0.3);
-        bgMusic.loop();
-      }
-    } else if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
-               mouseY > endlessY && mouseY < endlessY + buttonHeight) {
-      gameMode = 'endless';
-      gameState = 'playing';
-      // Start background music if available
-      if (bgMusicLoaded && bgMusic) {
-        bgMusic.setVolume(0.3);
-        bgMusic.loop();
-      }
     }
   } else if (gameState === 'lost') {
-    // Check restart mode buttons
     let buttonX = width / 2 - 125;
-    let classicY = height / 2 + 60;
-    let endlessY = height / 2 + 130;
+    let startY = height / 2 + 60;
     let buttonWidth = 250;
     let buttonHeight = 60;
     if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
-        mouseY > classicY && mouseY < classicY + buttonHeight) {
-      score = 0;
-      lives = 3;
-      wave = 1;
-      bullets = [];
-      enemyBullets = [];
-      powerUps = [];
-      player = new Player();
-      resetEnemies();
-      gameMode = 'classic';
-      gameState = 'playing';
-      if (bgMusicLoaded && bgMusic) {
-        bgMusic.loop();
-      }
-    } else if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
-               mouseY > endlessY && mouseY < endlessY + buttonHeight) {
-      score = 0;
-      lives = 3;
-      wave = 1;
-      bullets = [];
-      enemyBullets = [];
-      powerUps = [];
-      player = new Player();
-      resetEnemies();
-      gameMode = 'endless';
-      gameState = 'playing';
-      if (bgMusicLoaded && bgMusic) {
-        bgMusic.loop();
-      }
+        mouseY > startY && mouseY < startY + buttonHeight) {
+      restartGame();
     }
   } else if (gameState === 'nameInput') {
-    // Check submit button
     let buttonX = width / 2 - 100;
     let buttonY = height / 2 + 80;
     let buttonWidth = 200;
@@ -494,84 +329,34 @@ function mousePressed() {
 
 function touchStarted() {
   if (gameState === 'start') {
-    // Check mode selection buttons
     let buttonX = width / 2 - 125;
-    let classicY = height / 2 + 60;
-    let endlessY = height / 2 + 130;
+    let startY = height / 2 + 60;
     let buttonWidth = 250;
     let buttonHeight = 60;
     if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
-        mouseY > classicY && mouseY < classicY + buttonHeight) {
-      gameMode = 'classic';
+        mouseY > startY && mouseY < startY + buttonHeight) {
       gameState = 'playing';
-      // Start background music if available
-      if (bgMusicLoaded && bgMusic) {
-        bgMusic.setVolume(0.3);
-        bgMusic.loop();
-      }
-    } else if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
-               mouseY > endlessY && mouseY < endlessY + buttonHeight) {
-      gameMode = 'endless';
-      gameState = 'playing';
-      // Start background music if available
-      if (bgMusicLoaded && bgMusic) {
-        bgMusic.setVolume(0.3);
-        bgMusic.loop();
-      }
     }
   } else if (gameState === 'playing' && isMobile) {
-    // Left arrow button
     if (mouseX > 20 && mouseX < 80 && mouseY > height - 80 && mouseY < height - 20) {
       moveLeft = true;
     }
-    // Right arrow button
     if (mouseX > 100 && mouseX < 160 && mouseY > height - 80 && mouseY < height - 20) {
       moveRight = true;
     }
-    // Fire button
     if (mouseX > width - 80 && mouseX < width - 20 && mouseY > height - 80 && mouseY < height - 20) {
       isFiring = true;
     }
   } else if (gameState === 'lost') {
-    // Check restart mode buttons
     let buttonX = width / 2 - 125;
-    let classicY = height / 2 + 60;
-    let endlessY = height / 2 + 130;
+    let startY = height / 2 + 60;
     let buttonWidth = 250;
     let buttonHeight = 60;
     if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
-        mouseY > classicY && mouseY < classicY + buttonHeight) {
-      score = 0;
-      lives = 3;
-      wave = 1;
-      bullets = [];
-      enemyBullets = [];
-      powerUps = [];
-      player = new Player();
-      resetEnemies();
-      gameMode = 'classic';
-      gameState = 'playing';
-      if (bgMusicLoaded && bgMusic) {
-        bgMusic.loop();
-      }
-    } else if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
-               mouseY > endlessY && mouseY < endlessY + buttonHeight) {
-      score = 0;
-      lives = 3;
-      wave = 1;
-      bullets = [];
-      enemyBullets = [];
-      powerUps = [];
-      player = new Player();
-      resetEnemies();
-      gameMode = 'endless';
-      gameState = 'playing';
-      if (bgMusicLoaded && bgMusic) {
-        bgMusic.loop();
-      }
+        mouseY > startY && mouseY < startY + buttonHeight) {
+      restartGame();
     }
   } else if (gameState === 'nameInput') {
-    // Check submit button
     let buttonX = width / 2 - 100;
     let buttonY = height / 2 + 80;
     let buttonWidth = 200;
@@ -581,7 +366,7 @@ function touchStarted() {
       submitScore();
     }
   }
-  return false; // Prevent default touch behavior
+  return false;
 }
 
 function touchEnded() {
@@ -594,22 +379,10 @@ function touchEnded() {
 }
 
 function keyPressed() {
-  if (gameState === 'playing' && keyCode === 32) { // Spacebar to shoot
+  if (gameState === 'playing' && keyCode === 32) {
     player.shoot();
-  } else if (gameState === 'lost' && keyCode === 82) { // R to restart (classic mode)
-    score = 0;
-    lives = 3;
-    wave = 1;
-    bullets = [];
-    enemyBullets = [];
-    powerUps = [];
-    player = new Player();
-    resetEnemies();
-    gameMode = 'classic';
-    gameState = 'playing';
-    if (bgMusicLoaded && bgMusic) {
-      bgMusic.loop();
-    }
+  } else if (gameState === 'lost' && keyCode === 82) {
+    restartGame();
   } else if (gameState === 'nameInput') {
     if (keyCode === ENTER && inputName.trim() !== '') {
       submitScore();
@@ -621,13 +394,25 @@ function keyPressed() {
   }
 }
 
+function restartGame() {
+  score = 0;
+  lives = 3;
+  wave = 1;
+  bullets = [];
+  enemyBullets = [];
+  powerUps = [];
+  player = new Player();
+  resetEnemies();
+  gameState = 'playing';
+}
+
 function submitScore() {
   if (inputName.trim() === '') {
     inputName = 'Anonymous';
   }
   leaderboard.push({ name: inputName.trim(), score: score });
   leaderboard.sort((a, b) => b.score - a.score);
-  leaderboard = leaderboard.slice(0, 5); // Keep top 5
+  leaderboard = leaderboard.slice(0, 5);
   localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
   inputName = '';
   gameState = 'lost';
@@ -635,7 +420,7 @@ function submitScore() {
 
 function resetEnemies() {
   enemies = [];
-  let rows = min(4 + wave - 1, 8); // Start at 4 rows, add 1 per wave, cap at 8
+  let rows = min(4 + wave - 1, 8);
   for (let i = 0; i < 6; i++) {
     for (let j = 0; j < rows; j++) {
       let y = j * 50 + 60;
@@ -729,10 +514,6 @@ class Player {
         bullets.push(new Bullet(this.x + this.width / 2, this.y, 0));
       }
       this.shootTimer = this.shootCooldown;
-      if (fireSoundLoaded && fireSound) {
-        fireSound.setVolume(0.5);
-        fireSound.play();
-      }
     }
   }
   
