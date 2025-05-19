@@ -73,53 +73,75 @@ let inputName = '';
 let bgMusic = null;
 let fireSound = null;
 let hitSound = null;
+let bgMusicLoaded = false;
+let fireSoundLoaded = false;
+let hitSoundLoaded = false;
 
 function preload() {
   console.log('Preload started');
-  // Skip audio loading for file:// to avoid CORS/decode errors
-  if (window.location.protocol === 'file:') {
-    console.log('Running via file://, skipping audio loading to prevent CORS issues');
+  // Skip audio loading for file://, localhost, or empty host (e.g., Grok preview)
+  const isPreview = window.location.protocol === 'file:' || window.location.host.includes('localhost') || window.location.host === '';
+  if (isPreview) {
+    console.log('Running in preview mode (file://, localhost, or empty host), skipping audio loading');
     bgMusic = null;
     fireSound = null;
     hitSound = null;
+    bgMusicLoaded = false;
+    fireSoundLoaded = false;
+    hitSoundLoaded = false;
     return;
   }
-  // Load audio with try-catch and callbacks for error handling
+  // Load audio with try-catch and callbacks
   try {
-    bgMusic = loadSound('./spacegame-bg.wav', 
-      () => console.log('Loaded spacegame-bg.wav'),
+    bgMusic = loadSound('spacegame-bg.wav', 
+      () => {
+        console.log('Loaded spacegame-bg.wav');
+        bgMusicLoaded = true;
+      },
       (err) => {
         console.error('Failed to decode spacegame-bg.wav: ' + err);
         bgMusic = null;
+        bgMusicLoaded = false;
       }
     );
   } catch (err) {
     console.error('Error loading spacegame-bg.wav: ' + err.message);
     bgMusic = null;
+    bgMusicLoaded = false;
   }
   try {
-    fireSound = loadSound('./spacegame-shooting.wav', 
-      () => console.log('Loaded spacegame-shooting.wav'),
+    fireSound = loadSound('spacegame-shooting.wav', 
+      () => {
+        console.log('Loaded spacegame-shooting.wav');
+        fireSoundLoaded = true;
+      },
       (err) => {
         console.error('Failed to decode spacegame-shooting.wav: ' + err);
         fireSound = null;
+        fireSoundLoaded = false;
       }
     );
   } catch (err) {
     console.error('Error loading spacegame-shooting.wav: ' + err.message);
     fireSound = null;
+    fireSoundLoaded = false;
   }
   try {
-    hitSound = loadSound('./spacegame-shothit.wav', 
-      () => console.log('Loaded spacegame-shothit.wav'),
+    hitSound = loadSound('spacegame-shothit.wav', 
+      () => {
+        console.log('Loaded spacegame-shothit.wav');
+        hitSoundLoaded = true;
+      },
       (err) => {
         console.error('Failed to decode spacegame-shothit.wav: ' + err);
         hitSound = null;
+        hitSoundLoaded = false;
       }
     );
   } catch (err) {
     console.error('Error loading spacegame-shothit.wav: ' + err.message);
     hitSound = null;
+    hitSoundLoaded = false;
   }
   console.log('Preload completed');
 }
@@ -211,7 +233,7 @@ function draw() {
           enemies.splice(j, 1);
           bullets.splice(i, 1);
           score += 10;
-          if (hitSound && hitSound.isLoaded()) {
+          if (hitSoundLoaded && hitSound) {
             hitSound.setVolume(0.5);
             hitSound.play();
           }
@@ -297,7 +319,7 @@ function draw() {
     text(`Lives: ${lives}`, 15, 80);
     text(`Wave: ${wave}`, 15, 120);
   } else if (gameState === 'lost') {
-    if (bgMusic && bgMusic.isLoaded()) {
+    if (bgMusicLoaded && bgMusic) {
       bgMusic.stop();
     }
     for (let star of stars) {
@@ -368,7 +390,7 @@ function mousePressed() {
     if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
         mouseY > startY && mouseY < startY + buttonHeight) {
       gameState = 'playing';
-      if (bgMusic && bgMusic.isLoaded()) {
+      if (bgMusicLoaded && bgMusic) {
         bgMusic.setVolume(0.3);
         bgMusic.loop();
       }
@@ -403,7 +425,7 @@ function touchStarted() {
     if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
         mouseY > startY && mouseY < startY + buttonHeight) {
       gameState = 'playing';
-      if (bgMusic && bgMusic.isLoaded()) {
+      if (bgMusicLoaded && bgMusic) {
         bgMusic.setVolume(0.3);
         bgMusic.loop();
       }
@@ -475,7 +497,7 @@ function restartGame() {
   player = new Player();
   resetEnemies();
   gameState = 'playing';
-  if (bgMusic && bgMusic.isLoaded()) {
+  if (bgMusicLoaded && bgMusic) {
     bgMusic.setVolume(0.3);
     bgMusic.loop();
   }
@@ -589,7 +611,7 @@ class Player {
         bullets.push(new Bullet(this.x + this.width / 2, this.y, 0));
       }
       this.shootTimer = this.shootCooldown;
-      if (fireSound && fireSound.isLoaded()) {
+      if (fireSoundLoaded && fireSound) {
         fireSound.setVolume(0.5);
         fireSound.play();
       }
